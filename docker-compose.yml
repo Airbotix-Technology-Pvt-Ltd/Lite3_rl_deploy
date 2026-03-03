@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  lite3_sim:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lite3_sim
+    
+    # ── Display — lets MuJoCo window appear on your screen ──
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - MUJOCO_GL=glfw
+    
+    # ── NVIDIA GPU access ────────────────────────────────────
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, display, video, compute, utility]
+    
+    volumes:
+      # X11 socket — required for GUI window
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      
+      # Your code folder — edit files on your host machine,
+      # changes appear instantly inside the container
+      - ./your_code:/workspace/your_code
+      
+      # Optional: persist build artifacts so you dont rebuild every time
+      - lite3_build:/workspace/Lite3_rl_deploy/build
+    
+    # Host network — needed later when connecting to real robot
+    network_mode: host
+    
+    # Keep container alive
+    stdin_open: true
+    tty: true
+    
+    # Allow GUI apps
+    privileged: false
+    security_opt:
+      - seccomp:unconfined
+
+volumes:
+  lite3_build:
