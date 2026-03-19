@@ -1,0 +1,16 @@
+
+# ── Lite3 RL Deploy ──────────────────────────────────────────
+alias sim='cd /workspace/Lite3_rl_deploy/interface/robot/simulation && python3 mujoco_simulation.py'
+alias rebuild='mkdir -p /workspace/lite3_build && cd /workspace/lite3_build && cmake /workspace/Lite3_rl_deploy -DBUILD_PLATFORM=x86 -DBUILD_SIM=ON -DSEND_REMOTE=OFF && make -j$(nproc)'
+alias deploy='ln -sf /workspace/Lite3_rl_deploy/policy /workspace/policy && cd /workspace/lite3_build && ./rl_deploy'
+
+cd /workspace/Lite3_rl_deploy
+
+echo ''
+echo '  🐕  Lite3 RL Deploy Container Ready'
+echo ''
+echo '  Terminal 1:  sim'
+echo '  Terminal 2:  deploy'
+echo '  Rebuild C++: rebuild'
+echo '  Keys: z=stand  c=RL mode  wasd=move  qe=rotate'
+echo ''
