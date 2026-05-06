@@ -2,9 +2,19 @@ cmake_minimum_required(VERSION 3.10)
 
 project(rl_controller)
 
+find_package(ament_cmake REQUIRED)
+
 set(CMAKE_BUILD_TYPE Release)
 add_definitions(-w) # warning ignore
 add_compile_options(-fPIC)
+
+# Find ROS2 dependencies
+find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 # ========== 控制选项 ==========
 set(BUILD_PLATFORM "x86" CACHE STRING "select build cpu type")
@@ -92,6 +102,7 @@ include_directories(
   # ${TORCH_INCLUDE_DIRS}
   ${ONNX_RUNTIME_ROOT}/include
   ${MUJOCO_ROOT}/include
+  /home/lite3/.local/include
 )
 
 # ========== 添加 interface 子模块 ==========
@@ -118,14 +129,14 @@ message("USE_PYBULLET:    ${USE_PYBULLET}")
   endif()
 endif()
 
-# ========== 设置部署路径 ==========
-# 如果涉及到
-if (SEND_REMOTE)
-  set(PATH_LIB "../lib")
-  set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE) 
-  set(CMAKE_INSTALL_RPATH "${PATH_LIB}/onnxruntime/${BUILD_PLATFORM}/lib")
-  # set(CMAKE_INSTALL_RPATH ${PATH_LIB}/libtorch/${BUILD_PLATFORM}/lib)
-endif()
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE) 
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_INSTALL_RPATH 
+  "${THIRD_PARTY}/Lite3_MotionSDK/lib"
+  "${THIRD_PARTY}/onnxruntime/${BUILD_PLATFORM}/lib"
+  "${THIRD_PARTY}/mujoco/${BUILD_PLATFORM}/lib"
+  "/home/lite3/.local/lib/python3.10/site-packages/glfw/x11"
+)
 
 # ========== 快速链接器 (可选) ==========
 # Install mold with: sudo apt install mold
@@ -167,6 +178,19 @@ else()
     target_link_libraries(rl_deploy run_policy interface -lpthread -lm -lrt -ldl -lstdc++)
 endif()
 
+ament_target_dependencies(rl_deploy
+    rclcpp
+    geometry_msgs
+    nav_msgs
+    sensor_msgs
+    tf2
+    tf2_ros
+)
+
+install(TARGETS rl_deploy
+    DESTINATION lib/${PROJECT_NAME}
+)
+
 # if (USE_ONNX)
 #   target_link_libraries(rl_deploy onnxruntime)
 #   # target_link_libraries(rl_deploy torch)
@@ -177,12 +201,11 @@ endif()
 if (BUILD_SIM)
   if (USE_MJCPP)
     message("build simulation mujoco")
-    target_link_libraries(rl_deploy mujoco glfw)
+    target_link_libraries(rl_deploy mujoco /home/lite3/.local/lib/python3.10/site-packages/glfw/x11/libglfw.so)
   endif()
 endif()
 
-if (BUILD_SIM)
-  link_directories(${THIRD_PARTY}/Lite3_MotionSDK/lib)
+if (BUILD_PLATFORM STREQUAL "x86")
   target_link_libraries(rl_deploy
       ${PROJECT_SOURCE_DIR}/third_party/Lite3_MotionSDK/lib/libdeeprobotics_legged_sdk_x86_64.so
       pthread
@@ -235,3 +258,5 @@ if (SEND_REMOTE)
     COMMENT "run sftp_to_remote.sh"
   )
 endif()
+
+ament_package()

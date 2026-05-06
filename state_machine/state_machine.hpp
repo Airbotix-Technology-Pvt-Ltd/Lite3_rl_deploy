@@ -22,10 +22,12 @@
 // #endif
 
 #include "rl_control_state_onnx.hpp"
+#include "nav2_wrapper.hpp"
 
 #include "skydroid_gamepad_interface.hpp"
 #include "retroid_gamepad_interface.hpp"
 #include "keyboard_interface.hpp"
+#include "nav2_wrapper.hpp"
 #ifdef USE_RAISIM
     #include "simulation/jueying_raisim_simulation.hpp"
 #endif
@@ -114,29 +116,18 @@ public:
         const std::string activation_key = "~/raisim/activation.raisim";
         std::string urdf_path = "";
         std::string mjcf_path = "";
-        #ifdef BUILD_SIMULATION
-            uc_ptr_ = std::make_shared<KeyboardInterface>();
-        #else
-            uc_ptr_ = std::make_shared<RetroidGamepadInterface>(12121);
-        #endif
-        // uc_ptr_ = std::make_shared<KeyboardInterface>();
-        // uc_ptr_ = std::make_shared<RetroidGamepadInterface>(12121);
         if(robot_type == RobotType::Lite3){
-            urdf_path = GetAbsPath()+"/../third_party/URDF_model/lite3_urdf/Lite3/urdf/Lite3.urdf";
-            mjcf_path = GetAbsPath()+"third_party/URDF_model/Lite3/Lite3_mjcf/mjcf/Lite3.xml";
-            #ifdef USE_RAISIM
-                ri_ptr_ = std::make_shared<JueyingRaisimSimulation>(activation_key, urdf_path, "Lite3_sim");
-
-            #elif defined(USE_MJCPP)
-                ri_ptr_ = std::make_shared<MujocoInterface>("Lite3", mjcf_path);
-                std::cout << "Using MujocoInterface CPP " << std::endl;
-                std::cout << "mjcf_path: " << mjcf_path << std::endl;
-            #elif defined(USE_PYBULLET)
+            urdf_path = GetAbsPath()+"/third_party/deep_robotics_model/Lite3/Lite3_urdf/urdf/Lite3.urdf";
+            mjcf_path = GetAbsPath()+"/third_party/deep_robotics_model/Lite3/Lite3_mjcf/mjcf/Lite3.xml";
+            #ifdef BUILD_SIMULATION
                 ri_ptr_ = std::make_shared<SimulationInterface>("Lite3");
             #else
                 ri_ptr_ = std::make_shared<HardwareInterface>("Lite3");
             #endif
             cp_ptr_ = std::make_shared<ControlParameters>(robot_type);
+            
+            // Initialize Nav2 Wrapper as the command interface
+            uc_ptr_ = std::make_shared<Nav2Wrapper>(ri_ptr_);
         }else{
             std::cerr << "error" << std::endl;
         }
@@ -182,7 +173,8 @@ public:
     void Run(){
         int cnt = 0;
         static double time_record = 0;
-        while(true){
+        extern std::atomic<bool> g_running;
+        while(g_running){
             if(ri_ptr_->GetInterfaceTimeStamp()!= time_record){
                 time_record = ri_ptr_->GetInterfaceTimeStamp();
                 current_controller_ -> Run();
@@ -200,6 +192,10 @@ public:
                 }
                 ++cnt;
                 this->GetDataStreaming();
+                
+                // Publish Nav2 standard data (Odometry, IMU, TF)
+                auto nav_ptr = std::dynamic_pointer_cast<Nav2Wrapper>(uc_ptr_);
+                if(nav_ptr) nav_ptr->PublishData();
             }
             std::this_thread::sleep_for(std::chrono::microseconds(500));
         }
