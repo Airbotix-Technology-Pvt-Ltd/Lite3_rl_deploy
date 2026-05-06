@@ -17,9 +17,21 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 
 # ========== 控制选项 ==========
-set(BUILD_PLATFORM "x86" CACHE STRING "select build cpu type")
+# ========== Build Architecture Auto-Detection ==========
+if(NOT DEFINED BUILD_PLATFORM)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+        set(BUILD_PLATFORM "arm")
+    else()
+        set(BUILD_PLATFORM "x86")
+    endif()
+endif()
+
+message("Detected Platform: ${BUILD_PLATFORM}")
+set(USE_RAISIM OFF)
+option(SEND_REMOTE OFF)
+# option(USE_ONNX "Use ONNXRuntime" ON)
+option(USE_MJCPP "Use Mujoco C++" OFF)
 option(BUILD_SIM OFF)
-option(USE_RAISIM OFF)
 set(USE_PYBULLET ON)
 set(USE_RAISIM OFF)
 option(SEND_REMOTE OFF)
@@ -102,7 +114,7 @@ include_directories(
   # ${TORCH_INCLUDE_DIRS}
   ${ONNX_RUNTIME_ROOT}/include
   ${MUJOCO_ROOT}/include
-  /home/lite3/.local/include
+  $ENV{HOME}/.local/include
 )
 
 # ========== 添加 interface 子模块 ==========
@@ -135,7 +147,7 @@ set(CMAKE_INSTALL_RPATH
   "${THIRD_PARTY}/Lite3_MotionSDK/lib"
   "${THIRD_PARTY}/onnxruntime/${BUILD_PLATFORM}/lib"
   "${THIRD_PARTY}/mujoco/${BUILD_PLATFORM}/lib"
-  "/home/lite3/.local/lib/python3.10/site-packages/glfw/x11"
+  "$ENV{HOME}/.local/lib/python3.10/site-packages/glfw/x11"
 )
 
 # ========== 快速链接器 (可选) ==========
@@ -201,7 +213,7 @@ install(TARGETS rl_deploy
 if (BUILD_SIM)
   if (USE_MJCPP)
     message("build simulation mujoco")
-    target_link_libraries(rl_deploy mujoco /home/lite3/.local/lib/python3.10/site-packages/glfw/x11/libglfw.so)
+    target_link_libraries(rl_deploy mujoco $ENV{HOME}/.local/lib/python3.10/site-packages/glfw/x11/libglfw.so)
   endif()
 endif()
 
